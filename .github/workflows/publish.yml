@@ -1,0 +1,113 @@
+name: Publish Paseo Relay image
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Rebuild even when this upstream commit is already published
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: publish-paseo-relay
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/paseo-relay
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out official Paseo Relay
+        uses: actions/checkout@v6
+        with:
+          repository: getpaseo/paseo-relay
+          ref: main
+          fetch-depth: 1
+
+      - name: Resolve upstream revision
+        id: upstream
+        shell: bash
+        run: |
+          sha="$(git rev-parse HEAD)"
+          echo "sha=${sha}" >> "${GITHUB_OUTPUT}"
+          echo "tag=sha-${sha:0:12}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check whether this revision is already published
+        id: existing
+        env:
+          FORCE_REBUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.force || false }}
+          REVISION_TAG: ${{ steps.upstream.outputs.tag }}
+        shell: bash
+        run: |
+          if [[ "${FORCE_REBUILD}" != "true" ]] &&
+             docker buildx imagetools inspect "${IMAGE}:${REVISION_TAG}" >/dev/null 2>&1; then
+            echo "build=false" >> "${GITHUB_OUTPUT}"
+            echo "Already published: ${IMAGE}:${REVISION_TAG}"
+          else
+            echo "build=true" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Build and publish image
+        if: steps.existing.outputs.build == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ steps.upstream.outputs.tag }}
+          labels: |
+            org.opencontainers.image.title=Paseo Relay
+            org.opencontainers.image.description=Automated build of the official Paseo Relay
+            org.opencontainers.image.source=https://github.com/getpaseo/paseo-relay
+            org.opencontainers.image.revision=${{ steps.upstream.outputs.sha }}
+          cache-from: type=gha,scope=paseo-relay
+          cache-to: type=gha,mode=max,scope=paseo-relay
+          provenance: mode=max
+          sbom: true
+
+      - name: Write job summary
+        env:
+          BUILT: ${{ steps.existing.outputs.build }}
+          REVISION: ${{ steps.upstream.outputs.sha }}
+          REVISION_TAG: ${{ steps.upstream.outputs.tag }}
+        shell: bash
+        run: |
+          {
+            echo "## Paseo Relay image"
+            echo
+            echo "- Upstream revision: \`${REVISION}\`"
+            echo "- Immutable image: \`${IMAGE}:${REVISION_TAG}\`"
+            echo "- Rolling image: \`${IMAGE}:latest\`"
+            if [[ "${BUILT}" == "true" ]]; then
+              echo "- Result: built and published"
+            else
+              echo "- Result: already published; build skipped"
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
