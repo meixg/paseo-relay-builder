@@ -73,7 +73,7 @@ jobs:
 
       - name: Build and publish image
         if: steps.existing.outputs.build == 'true'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Dockerfile
