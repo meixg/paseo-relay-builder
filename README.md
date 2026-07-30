@@ -22,16 +22,6 @@ The workflow runs every six hours and can also be started manually from the
 Actions tab. Before building, it checks whether the immutable revision tag
 already exists in GHCR, so unchanged upstream revisions are skipped.
 
-## First-time setup
-
-After the first successful workflow run, open the package settings on GitHub and
-change the package visibility to **Public**. Public GHCR images can then be
-pulled without registry credentials.
-
-Public repositories with no repository activity for 60 days may have scheduled
-workflows disabled by GitHub. If that happens, re-enable the workflow from the
-Actions tab or trigger it manually.
-
 ## Deploy
 
 Copy the included example:
