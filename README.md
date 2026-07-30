@@ -11,17 +11,6 @@ publishes the result to:
 ghcr.io/meixg/paseo-relay
 ```
 
-## Published tags
-
-- `latest`: the newest upstream `main` revision built successfully.
-- `sha-<12 characters>`: an immutable tag for a specific upstream commit.
-
-Images are published for `linux/amd64` and `linux/arm64`.
-
-The workflow runs every six hours and can also be started manually from the
-Actions tab. Before building, it checks whether the immutable revision tag
-already exists in GHCR, so unchanged upstream revisions are skipped.
-
 ## Deploy
 
 Copy the included example:
