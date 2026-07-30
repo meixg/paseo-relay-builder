@@ -34,22 +34,39 @@ Actions tab or trigger it manually.
 
 ## Deploy
 
-For a rolling deployment:
+Copy the included example:
 
-```yaml
-services:
-  relay:
-    image: ghcr.io/meixg/paseo-relay:latest
-    restart: unless-stopped
-    environment:
-      PASEO_RELAY_HOST: 0.0.0.0
-      PASEO_RELAY_PORT: 4000
-      PASEO_RELAY_MIN_CLUSTER_SIZE: 1
-      PASEO_RELAY_OWNERSHIP_TARGET: local
+```sh
+cp compose.example.yml compose.yml
+export CLOUDFLARE_TUNNEL_TOKEN="<your-tunnel-token>"
+docker compose up -d
 ```
 
-For predictable production rollouts, replace `latest` with the immutable
-`sha-<12 characters>` tag shown in the workflow summary.
+In the Cloudflare Tunnel dashboard, route the public hostname (for example,
+`relay.example.com`) to:
+
+```text
+http://relay:4000
+```
+
+The example does not publish port 4000 on the host. Both services communicate
+over a private Compose network, and remote traffic enters through Cloudflare
+Tunnel.
+
+It uses the rolling image by default:
+
+```dotenv
+PASEO_RELAY_IMAGE=ghcr.io/meixg/paseo-relay:latest
+```
+
+For predictable production rollouts, set an immutable tag before starting:
+
+```sh
+export PASEO_RELAY_IMAGE="ghcr.io/meixg/paseo-relay:sha-<12 characters>"
+docker compose up -d
+```
+
+The current immutable tag is shown in each successful workflow summary.
 
 ## Trust model
 
