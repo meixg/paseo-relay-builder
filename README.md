@@ -70,6 +70,69 @@ docker compose up -d
 
 The current immutable tag is shown in each successful workflow summary.
 
+### Configure Paseo
+
+After the relay is reachable at a public TLS hostname, edit
+`~/.paseo/config.json` on the machine running the Paseo daemon:
+
+```json
+{
+  "daemon": {
+    "relay": {
+      "enabled": true,
+      "endpoint": "relay.example.com:443",
+      "publicEndpoint": "relay.example.com:443",
+      "useTls": true,
+      "publicUseTls": true
+    }
+  }
+}
+```
+
+Replace `relay.example.com` with your relay hostname.
+
+- `endpoint` and `useTls` control how the daemon connects to the relay.
+- `publicEndpoint` and `publicUseTls` are included in pairing offers and control
+  how phones and other clients connect.
+
+When the daemon and the relay-only Compose stack run on the same host, the
+daemon can avoid the public round trip:
+
+```json
+{
+  "daemon": {
+    "relay": {
+      "enabled": true,
+      "endpoint": "127.0.0.1:4000",
+      "publicEndpoint": "relay.example.com:443",
+      "useTls": false,
+      "publicUseTls": true
+    }
+  }
+}
+```
+
+This local optimization applies to `compose.example.yml`, which publishes the
+relay on the host loopback interface. The Cloudflare Tunnel example does not
+publish port 4000 on the host, so use the public hostname for both endpoints
+unless the daemon is attached to its Docker network.
+
+Restarting the Paseo daemon interrupts running agents. After current work has
+finished, restart it:
+
+```sh
+paseo daemon stop
+paseo daemon start
+```
+
+Then generate a new pairing QR code and pair clients again so they receive the
+self-hosted relay endpoint. Verify the public relay before pairing:
+
+```sh
+curl https://relay.example.com/health
+curl https://relay.example.com/ready
+```
+
 ## Trust model
 
 The image is built from the official upstream source at the revision recorded
