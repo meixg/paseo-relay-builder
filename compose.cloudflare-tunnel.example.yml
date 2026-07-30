@@ -1,0 +1,32 @@
+name: paseo-relay
+
+services:
+  relay:
+    image: ${PASEO_RELAY_IMAGE:-ghcr.io/meixg/paseo-relay:latest}
+    restart: unless-stopped
+    environment:
+      PASEO_RELAY_HOST: "0.0.0.0"
+      PASEO_RELAY_PORT: "4000"
+      PASEO_RELAY_MIN_CLUSTER_SIZE: "1"
+      PASEO_RELAY_OWNERSHIP_TARGET: local
+    expose:
+      - "4000"
+    networks:
+      - relay
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command:
+      - tunnel
+      - --no-autoupdate
+      - run
+      - --token
+      - ${CLOUDFLARE_TUNNEL_TOKEN:?Set CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - relay
+    networks:
+      - relay
+
+networks:
+  relay:
